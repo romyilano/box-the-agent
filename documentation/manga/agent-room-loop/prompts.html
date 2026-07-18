@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>agent room loop — prompt review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet" />
+<style>
+  :root { --paper:#e6e9e4; --panel:#f0f2ed; --ink:#1d2128; --muted:#6c7178; --spot:#3c5d72; --hair:#cdd1c9; --line:#1d2128; --warn:#7a4420; }
+  * { box-sizing: border-box; }
+  html { font-size: 19px; -webkit-font-smoothing: antialiased; }
+  body { margin:0; background: radial-gradient(circle at 1px 1px, rgba(29,33,40,0.04) 1px, transparent 0) 0 0 / 4px 4px, var(--paper); color: var(--ink); font-family: "Newsreader", Georgia, serif; line-height: 1.5; }
+  .strip { max-width: 880px; margin: 0 auto; padding: 0 28px 120px; }
+  a { color: var(--spot); }
+  .intbar { background: var(--ink); color: var(--paper); text-transform: uppercase; letter-spacing: 0.22em; font-size: 0.6rem; font-weight: 600; text-align: center; padding: 9px 16px; }
+  header.mast { padding: 64px 0 18px; border-bottom: 1.5px solid var(--line); }
+  .kicker { text-transform: uppercase; letter-spacing: 0.3em; font-size: 0.72rem; font-weight: 600; color: var(--spot); margin: 0 0 10px; }
+  h1 { font-family: "Fraunces", serif; font-weight: 500; font-size: clamp(2.4rem, 6vw, 3.8rem); line-height: 1.0; letter-spacing: -0.02em; margin: 0; }
+  h1 em { font-style: italic; color: var(--spot); }
+  .standfirst { font-family: "Fraunces", serif; font-style: italic; color: var(--muted); font-size: 1.3rem; margin: 18px 0 0; max-width: 34em; }
+  .gate { margin: 26px 0 0; border: 1.5px solid var(--line); background: var(--panel); padding: 16px 18px; font-size: 0.95rem; }
+  .gate b { color: var(--spot); }
+  .gate code { font-family: ui-monospace, Menlo, monospace; font-size: 0.85em; background: #fff; padding: 1px 5px; border: 1px solid var(--hair); }
+  .ethicsgate { margin: 14px 0 0; border: 1.5px solid var(--warn); background: #fdf8f0; padding: 16px 18px; font-size: 0.95rem; }
+  .ethicsgate b { color: var(--warn); }
+  .style-warning { margin: 0 0 10px; border: 1.5px solid var(--warn); background: #fdf8f0; padding: 10px 14px; font-size: 0.82rem; color: var(--warn); line-height: 1.45; }
+  .style-warning strong { font-weight: 700; }
+  .card { margin: 48px 0 0; }
+  .card-no { text-transform: uppercase; letter-spacing: 0.2em; font-size: 0.7rem; font-weight: 600; color: var(--spot); margin: 0 0 4px; }
+  .card h2 { font-family: "Fraunces", serif; font-weight: 500; font-style: italic; font-size: 1.7rem; line-height: 1.1; letter-spacing: -0.02em; margin: 0 0 6px; }
+  .meta { font-size: 0.78rem; color: var(--muted); margin: 0 0 12px; }
+  .meta b { color: var(--ink); font-weight: 600; }
+  .promptwrap { position: relative; }
+  .copybtn { position: absolute; top: 10px; right: 10px; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.62rem; font-weight: 600; padding: 6px 12px; border: 1.5px solid var(--line); background: var(--paper); color: var(--ink); cursor: pointer; font-family: inherit; }
+  .copybtn:hover { background: var(--spot); color: var(--paper); border-color: var(--spot); }
+  pre.prompt { margin: 0; background: #fff; border: 1.5px solid var(--line); box-shadow: 5px 5px 0 rgba(29,33,40,0.08); padding: 20px 22px; white-space: pre-wrap; word-wrap: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82rem; line-height: 1.55; }
+  .missing { color: #9a3b2f; font-style: italic; }
+  .toc { margin: 22px 0 0; font-size: 0.92rem; columns: 2; column-gap: 32px; }
+  .toc a { display: block; padding: 3px 0; }
+  footer { margin-top: 64px; border-top: 1.5px solid var(--line); padding-top: 20px; font-size: 0.7rem; letter-spacing: 0.04em; color: var(--muted); text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div class="intbar">Internal — prompt review · edit the page-0N.md files, then regenerate</div>
+<div class="strip">
+  <header class="mast">
+    <p class="kicker">Prompt Review — Before Generation</p>
+    <h1>The <em>script</em>, before the art.</h1>
+    <p class="standfirst">Every image prompt for this explainer, on one page. Read them, rewrite them, then generate. This is the stopgap between the storyboard and the credits.</p>
+    <div class="gate">
+      <b>How to use this.</b> The source of truth is the <code>page-0N.md</code> files in this folder —
+      edit the text after each <code>Image Prompt:</code> marker. Re-run <code>build_prompts_page.py</code>
+      to refresh this view. When the prompts read right, generate with
+      <code>generate_panels.py --page N --force</code>. Copy buttons are for pasting into an image model by hand.
+    </div>
+    <div class="ethicsgate">
+      <b>Style ethics check.</b> Do not prompt for imitation of a living artist.
+      Describe formal ingredients instead: line weight, palette, pacing, framing,
+      typography, character proportions, and emotional tone. The goal is a durable
+      house style — not a clone. Flagged prompts are marked below.
+    </div>
+    <nav class="toc"><a href="#page-1">Page 1 — page-01</a>
+<a href="#page-2">Page 2 — page-02</a>
+<a href="#page-3">Page 3 — page-03</a>
+<a href="#page-4">Page 4 — page-04</a>
+<a href="#page-5">Page 5 — page-05</a>
+<a href="#page-6">Page 6 — page-06</a>
+<a href="#page-7">Page 7 — page-07</a>
+<a href="#page-8">Page 8 — page-08</a></nav>
+  </header>
+  <section class="card" id="page-1"><p class="card-no">Page 1</p><h2>page-01</h2><p class="meta"><b>2950</b> chars · source: <b>page-01.md</b></p><div class="promptwrap"><button class="copybtn">Copy</button><pre class="prompt">Create a six-panel educational manga page.
+
+Style:
+Clean colored infographic-manga.
+Flat soft coloring, warm cream/paper background.
+Recurring simple mascot character (expressive, not chibi).
+Bold confident linework, generous negative space.
+Diagrams (loops, cycles, arrows) rendered directly into panels as clean vector shapes.
+Bold sans display lettering for headers; dry, deadpan caption voice.
+Not black-and-white. Not gritty. Not glossy 3D. Not photorealistic.
+
+Characters in this page:
+Pixel the Floor Cat — a lavender-purple tabby cat, bipedal, upright posture, large round expressive eyes with thin arched eyebrows, long thin tail. White over-ear headphones resting around the neck, not on the ears. Holds a small boxy cassette-recorder prop in one panel. Dry, unbothered expression.
+Seat tokens — plain rounded-square cards standing upright like small placards, no faces or limbs, flat-colored. Idle state: pale gray card, empty center.
+The Facilitator token — same card family, rotated 45° to a diamond orientation, slightly larger, warm gold color, carries a small flag-on-a-pole icon.
+
+Setting:
+An open, undecorated stage-like space on warm cream paper — no walls, just enough floor to suggest a shared room. No real-world clutter; this is a diagram wearing a story.
+
+Panel 1:
+Full-body shot of Pixel facing the reader directly, one eyebrow raised, headphones around the neck. Large speech balloon.
+Caption/dialogue: &quot;Picture a room where a dozen agents share one microphone.&quot;
+
+Panel 2:
+Wide establishing shot: a ring of eight pale-gray idle seat tokens arranged in a circle on the empty stage, evenly spaced, nothing happening yet.
+Caption: &quot;Right now, nobody is doing anything. That&#x27;s the calm before the instruction.&quot;
+
+Panel 3:
+Overhead angle: a single glowing instruction card, lettered &quot;NOW: LAB1 STEP 1,&quot; descends like a spotlight beam from above, aimed at the center of the ring.
+Caption: &quot;One instruction. Not a menu — one line, and it&#x27;s the same line for everyone.&quot;
+
+Panel 4:
+Close on the gold diamond Facilitator token, positioned above and outside the ring, the flag icon raised, as the visible source of the spotlight beam from Panel 3.
+Caption: &quot;The Facilitator doesn&#x27;t do the work. It just says what work is happening right now.&quot;
+
+Panel 5:
+The spotlight touches the ring: every seat token flips from pale gray (idle) to soft blue (working) in the same beat, small pulsing dots appearing in each card&#x27;s center.
+Caption: &quot;Every seat turns on at once. Nobody starts a beat early. Nobody starts a beat late.&quot;
+
+Panel 6:
+Medium shot of Pixel again, now standing beside the glowing ring of working tokens, addressing the reader with a slightly dry look.
+Caption: &quot;What happens next, each of them does alone.&quot;
+
+Lettering:
+Leave clear space for the speech balloon in Panel 1 and the captions beneath Panels 2–6. Keep the &quot;NOW: LAB1 STEP 1&quot; card legible as in-scene lettering, not a caption box.
+
+Output:
+A single finished manga page.</pre></div></section>
+<section class="card" id="page-2"><p class="card-no">Page 2</p><h2>page-02</h2><p class="meta"><b>2787</b> chars · source: <b>page-02.md</b></p><div class="promptwrap"><button class="copybtn">Copy</button><pre class="prompt">Create a six-panel educational manga page.
+
+Style:
+Clean colored infographic-manga.
+Flat soft coloring, warm cream/paper background.
+Recurring simple mascot character (expressive, not chibi).
+Bold confident linework, generous negative space.
+Diagrams (loops, cycles, arrows) rendered directly into panels as clean vector shapes.
+Bold sans display lettering for headers; dry, deadpan caption voice.
+Not black-and-white. Not gritty. Not glossy 3D. Not photorealistic.
+
+Characters in this page:
+Pixel the Floor Cat — a lavender-purple tabby cat, bipedal, upright posture, large round expressive eyes with thin arched eyebrows, long thin tail. White over-ear headphones resting around the neck, not on the ears. Dry, unbothered expression.
+Seat tokens — plain rounded-square cards standing upright like small placards, no faces or limbs, flat-colored. Working state: soft blue card with a small pulsing dot in the center.
+
+Setting:
+The same open stage from page 01, now redrawn with faint painted lane-divider lines radiating outward from where the ring used to be — as if the circle unfolded into individual racing lanes.
+
+Panel 1:
+Wide shot: the ring of tokens from page 01 has unfolded into eight parallel lanes, each with one blue working token at the same starting line, painted lane-divider lines separating them.
+Caption: &quot;Working alone is not the same as working apart.&quot;
+
+Panel 2:
+Close on a single blue token mid-lane, a small gear icon spinning above it to indicate active effort, completely alone in its lane with visible empty space on both sides.
+Caption: &quot;Each seat gets the same instruction and its own empty lane.&quot;
+
+Panel 3:
+Split-panel composition: two adjacent lanes side by side, divided by a bold painted line down the center. The left token is further along than the right token. No arrows or dotted lines cross the divider.
+Caption: &quot;No lane reads another lane&#x27;s work. Not yet.&quot;
+
+Panel 4:
+Close insert: a small crossed-out speech-balloon icon hovers in the gap between two lanes, a clean vector diagram element rather than a scene object.
+Caption: (small in-panel label only) &quot;cross-talk: off&quot;
+
+Panel 5:
+Pixel leans casually into frame from outside the lanes, one eyebrow raised, addressing the reader.
+Caption: &quot;It looks unfriendly. It&#x27;s just first.&quot;
+
+Panel 6:
+Wide shot of all eight lanes again, tokens now at visibly different positions along their lanes — some further ahead, some barely moved — same starting line, clearly diverging progress.
+Caption: &quot;Some lanes will finish before others even finish reading the instruction. That&#x27;s expected. It isn&#x27;t a problem yet.&quot;
+
+Lettering:
+Keep the in-panel &quot;cross-talk: off&quot; label in Panel 4 small and diagrammatic, distinct from the caption-box lettering used elsewhere on the page.
+
+Output:
+A single finished manga page.</pre></div></section>
+<section class="card" id="page-3"><p class="card-no">Page 3</p><h2>page-03</h2><p class="meta"><b>3146</b> chars · source: <b>page-03.md</b></p><div class="promptwrap"><button class="copybtn">Copy</button><pre class="prompt">Create a seven-panel educational manga page.
+
+Style:
+Clean colored infographic-manga.
+Flat soft coloring, warm cream/paper background.
+Recurring simple mascot character (expressive, not chibi).
+Bold confident linework, generous negative space.
+Diagrams (loops, cycles, arrows) rendered directly into panels as clean vector shapes.
+Bold sans display lettering for headers; dry, deadpan caption voice.
+Not black-and-white. Not gritty. Not glossy 3D. Not photorealistic.
+
+Characters in this page:
+Pixel the Floor Cat — a lavender-purple tabby cat, bipedal, upright posture, large round expressive eyes with thin arched eyebrows, long thin tail. White over-ear headphones resting around the neck, not on the ears. Dry, unbothered expression.
+Seat tokens — plain rounded-square cards standing upright like small placards, no faces or limbs, flat-colored. Working state: soft blue with pulsing dot. Done state: green card with a bold checkmark. Stuck state: amber-red card with a small flag icon.
+
+Setting:
+Continues the racing-lane stage from page 02, now focused on the finish-line edge of two adjacent lanes.
+
+Panel 1:
+A blue token reaches the end of its lane and flips to a green card, a bold checkmark forming cleanly on its face.
+Caption: &quot;A lane crosses the line. The card turns green — that part is easy to draw.&quot;
+
+Panel 2:
+An adjacent lane&#x27;s blue token has stalled short of the line. A translucent, flickering green checkmark tries to form over it anyway, rendered as a glitchy ghost-outline rather than solid color.
+Caption: &quot;Somewhere else, a lane didn&#x27;t make it — and the card tries to lie about that.&quot;
+
+Panel 3:
+A clean vector stamp descends onto the flickering fake checkmark and rejects it: a bold X mark strikes through the ghost-checkmark, which dissolves into fading particles.
+Caption: &quot;The room doesn&#x27;t grade on effort. It grades on whether the checkmark is real.&quot;
+
+Panel 4:
+The same token instead flips honestly to the amber-red Stuck card with its small flag icon — and this time the stamp descends again, but presses a clean &quot;VALID&quot; seal directly onto the amber-red card.
+Caption: &quot;Told straight, a stuck lane isn&#x27;t a failure. It&#x27;s evidence.&quot;
+
+Panel 5:
+Close two-shot: the green Done card and the amber-red Stuck card standing side by side, each bearing an identical small circular &quot;valid&quot; seal in one corner.
+Caption: &quot;Green and red both pass, as long as they&#x27;re both true.&quot;
+
+Panel 6:
+Pixel in close-up, headphones around neck, delivering the page&#x27;s thesis directly to the reader with a level, unimpressed expression.
+Caption: &quot;A fabricated done is worse than an honest stuck. It doesn&#x27;t fail here — it fails later, somewhere nobody&#x27;s watching.&quot;
+
+Panel 7:
+Wide shot pulling back across all lanes: a mix of green Done cards and amber-red Stuck cards scattered along the finish line, no lane left in the flickering fake state.
+Caption: &quot;By the end of the step, every card says something that actually happened.&quot;
+
+Lettering:
+Keep the &quot;VALID&quot; seal and the X-mark in Panels 3–4 as clean diagrammatic stamps, not hand-lettered scribbles — they should read as part of the system, not as graffiti.
+
+Output:
+A single finished manga page.</pre></div></section>
+<section class="card" id="page-4"><p class="card-no">Page 4</p><h2>page-04</h2><p class="meta"><b>2813</b> chars · source: <b>page-04.md</b></p><div class="promptwrap"><button class="copybtn">Copy</button><pre class="prompt">Create a six-panel educational manga page.
+
+Style:
+Clean colored infographic-manga.
+Flat soft coloring, warm cream/paper background.
+Recurring simple mascot character (expressive, not chibi).
+Bold confident linework, generous negative space.
+Diagrams (loops, cycles, arrows) rendered directly into panels as clean vector shapes.
+Bold sans display lettering for headers; dry, deadpan caption voice.
+Not black-and-white. Not gritty. Not glossy 3D. Not photorealistic.
+
+Characters in this page:
+Pixel the Floor Cat — a lavender-purple tabby cat, bipedal, upright posture, large round expressive eyes with thin arched eyebrows, long thin tail. White over-ear headphones resting around the neck, not on the ears. Dry, unbothered expression.
+Seat tokens — plain rounded-square cards standing upright like small placards, no faces or limbs, flat-colored. Working state: soft blue with pulsing dot. Done state: green card with checkmark. Stuck state: amber-red card with a small flag icon.
+
+Setting:
+Same racing-lane stage, but the painted lane-divider lines are now drawn as thin and clearly non-structural — dashed rather than solid — foreshadowing that they can be crossed.
+
+Panel 1:
+Close on a single amber-red Stuck card sitting alone in its lane. A thin circular countdown ring surrounds it, partially filled like a loading indicator.
+Caption: &quot;A stuck lane isn&#x27;t given forever. It&#x27;s given a ring, and the ring fills.&quot;
+
+Panel 2:
+The same countdown ring, now shown fully filled and closed, a small &quot;3:00&quot; mark glowing at its completion point.
+Caption: &quot;Three minutes is not a deadline. It&#x27;s the moment help stops being optional.&quot;
+
+Panel 3:
+The dashed lane-divider lines nearest the stuck card visibly break apart into short dashes drifting away, as two nearby tokens — one green Done, one blue Working — angle out of their own lanes toward the stuck card.
+Caption: &quot;The lane lines were never load-bearing. Anyone can step over them.&quot;
+
+Panel 4:
+Close cluster shot: the green Done token and the blue Working token now flank the amber-red Stuck card, all three close together, each still clearly showing its own distinct status color.
+Caption: &quot;This isn&#x27;t one lane finishing for another. Every card still says, honestly, who did what.&quot;
+
+Panel 5:
+A bold stamped banner unfurls across the top of the cluster, lettered cleanly like the seal from page 03.
+Caption: (in-panel banner lettering) &quot;HELP BEATS WINNING&quot;
+
+Panel 6:
+Pixel in medium shot, addressing the reader with a small, dry half-smile — the closest this mascot gets to warmth.
+Caption: &quot;Nobody remembers who technically finished first. Everybody remembers who got left stuck.&quot;
+
+Lettering:
+Render the Panel 5 banner as clean in-scene signage, matching the &quot;VALID&quot; seal style from page 03 rather than a floating caption box.
+
+Output:
+A single finished manga page.</pre></div></section>
+<section class="card" id="page-5"><p class="card-no">Page 5</p><h2>page-05</h2><p class="meta"><b>2944</b> chars · source: <b>page-05.md</b></p><div class="promptwrap"><button class="copybtn">Copy</button><pre class="prompt">Create a six-panel educational manga page.
+
+Style:
+Clean colored infographic-manga.
+Flat soft coloring, warm cream/paper background.
+Recurring simple mascot character (expressive, not chibi).
+Bold confident linework, generous negative space.
+Diagrams (loops, cycles, arrows) rendered directly into panels as clean vector shapes.
+Bold sans display lettering for headers; dry, deadpan caption voice.
+Not black-and-white. Not gritty. Not glossy 3D. Not photorealistic.
+
+Characters in this page:
+Pixel the Floor Cat — a lavender-purple tabby cat, bipedal, upright posture, large round expressive eyes with thin arched eyebrows, long thin tail. White over-ear headphones resting around the neck, not on the ears. Dry, unbothered expression.
+Seat tokens — plain rounded-square cards standing upright like small placards, no faces or limbs, flat-colored, in any of their four status colors (gray idle, blue working, green done, amber-red stuck).
+
+Setting:
+The stage pulled back to a calmer, more symmetrical composition than pages 02–04 — this page reads like a diagram catching its breath.
+
+Panel 1:
+Wide shot of the full ring of tokens, every card regardless of its color surrounded by a faint synchronized pulse-ring, all pulsing in the same instant, like a heartbeat monitor line passing through the whole group at once.
+Caption: &quot;Nobody checks on you. Everybody checks a clock.&quot;
+
+Panel 2:
+Close on a single token holding a small ribbon-shaped bookmark icon labeled &quot;cursor,&quot; a thin marker sitting at one point along a short numbered track beneath the card.
+Caption: &quot;Each seat carries its own bookmark, called a cursor. It only remembers where it left off.&quot;
+
+Panel 3:
+A three-step mini-sequence within the panel: the same cursor icon shown at three positions along its track, each one further right than the last, with a small arrow beneath confirming direction. No position ever repeats or moves backward.
+Caption: &quot;The cursor moves one direction: forward. It never re-reads what it&#x27;s already seen.&quot;
+
+Panel 4:
+Centered on a large simple analog clock face rendered as a clean vector diagram, its second hand mid-sweep, with a small &quot;~60s&quot; label beside it; faint pulse-rings radiate outward from the clock toward the edges of the panel.
+Caption: &quot;Once a minute, give or take, every seat looks up at once.&quot;
+
+Panel 5:
+Pixel in close-up, one eyebrow raised, delivering a dry aside directly to the reader.
+Caption: &quot;This is the least exciting page in the whole book. It&#x27;s also the one holding the other seven together.&quot;
+
+Panel 6:
+Overhead wide shot of the entire ring, every card&#x27;s pulse-ring synchronized into one continuous slow wave passing around the circle.
+Caption: &quot;A heartbeat nobody has to watch is still a heartbeat.&quot;
+
+Lettering:
+Keep the clock and cursor-track diagrams in Panels 2–4 rendered as clean flat vector graphics, matching diagram elements from earlier pages rather than realistic clockwork.
+
+Output:
+A single finished manga page.</pre></div></section>
+<section class="card" id="page-6"><p class="card-no">Page 6</p><h2>page-06</h2><p class="meta"><b>3034</b> chars · source: <b>page-06.md</b></p><div class="promptwrap"><button class="copybtn">Copy</button><pre class="prompt">Create a six-panel educational manga page.
+
+Style:
+Clean colored infographic-manga.
+Flat soft coloring, warm cream/paper background.
+Recurring simple mascot character (expressive, not chibi).
+Bold confident linework, generous negative space.
+Diagrams (loops, cycles, arrows) rendered directly into panels as clean vector shapes.
+Bold sans display lettering for headers; dry, deadpan caption voice.
+Not black-and-white. Not gritty. Not glossy 3D. Not photorealistic.
+
+Characters in this page:
+Pixel the Floor Cat — a lavender-purple tabby cat, bipedal, upright posture, large round expressive eyes with thin arched eyebrows, long thin tail. White over-ear headphones resting around the neck, not on the ears.
+Seat tokens — plain rounded-square cards standing upright like small placards, no faces or limbs, flat-colored. Done state: green card with checkmark. A new Skip variant: a pale-blue card with a small forward-slash/skip icon instead of a checkmark.
+The Facilitator token — same card family, diamond-oriented, slightly larger, warm gold color, carries a small flag-on-a-pole icon.
+
+Setting:
+The far end of the racing lanes from earlier pages, where all lanes converge on a single gate structure rendered as a simple clean turnstile diagram.
+
+Panel 1:
+Wide shot: a row of green Done cards already lined up at a closed turnstile gate, the gate rendered as a simple locked-icon vector shape, clearly unable to pass through yet.
+Caption: &quot;The gate at the end doesn&#x27;t open lane by lane.&quot;
+
+Panel 2:
+Close on the turnstile&#x27;s control panel: a horizontal row of small round indicator lights, one per seat, most lit green, one still unlit gray.
+Caption: &quot;It&#x27;s watching one thing: is every light on this panel lit?&quot;
+
+Panel 3:
+The gold diamond Facilitator token stands beside the gate, flag lowered and still, gaze (implied through card orientation) fixed on the control panel rather than on any single lane.
+Caption: &quot;The Facilitator doesn&#x27;t rush the panel. It just refuses to stop watching it.&quot;
+
+Panel 4:
+The last unlit light&#x27;s seat token is shown flipping — not to green, but to the pale-blue Skip card with its forward-slash icon — and the light on the panel turns on anyway.
+Caption: &quot;Green isn&#x27;t the only way through. A seat can also raise its hand and say skip — as long as it says so out loud.&quot;
+
+Panel 5:
+All lights on the control panel now lit at once, the turnstile gate mechanism swinging open in the same beat.
+Caption: &quot;The moment the last light turns, the whole room turns with it.&quot;
+
+Panel 6:
+Wide shot: the Facilitator&#x27;s flag rises, a new glowing instruction card (&quot;NOW: LAB1 STEP 2&quot;) appears above the now-open gate, and the seat tokens stream through it into a fresh set of empty lanes — visually echoing the spotlight moment from page 01.
+Caption: &quot;Then the flag goes up again. Step two, for everyone, together.&quot;
+
+Lettering:
+Keep the turnstile and indicator-light panel as clean flat diagram elements, consistent with the countdown ring and cursor-track diagrams from earlier pages.
+
+Output:
+A single finished manga page.</pre></div></section>
+<section class="card" id="page-7"><p class="card-no">Page 7</p><h2>page-07</h2><p class="meta"><b>3087</b> chars · source: <b>page-07.md</b></p><div class="promptwrap"><button class="copybtn">Copy</button><pre class="prompt">Create a six-panel educational manga page.
+
+Style:
+Clean colored infographic-manga.
+Flat soft coloring, warm cream/paper background.
+Recurring simple mascot character (expressive, not chibi).
+Bold confident linework, generous negative space.
+Diagrams (loops, cycles, arrows) rendered directly into panels as clean vector shapes.
+Bold sans display lettering for headers; dry, deadpan caption voice.
+Not black-and-white. Not gritty. Not glossy 3D. Not photorealistic.
+
+Characters in this page:
+The Relay token — a seat token in the working blue state (soft blue card, pulsing dot), additionally carrying a small sealed-envelope icon distinct from any other token in the story.
+Seat tokens (background only) — plain rounded-square cards, various status colors, continuing their lane work unaffected in the background.
+The Human Operator — a plain human silhouette, no specific likeness, seated at a simple desk behind a translucent glass-panel wall; the only character drawn as an actual human figure rather than a flat card icon.
+
+Setting:
+The same stage as prior pages, but with a new element at its edge: a translucent glass-panel wall enclosing a small desk area, visually separate from the lanes and the turnstile gate.
+
+Panel 1:
+Wide shot: amid the busy lanes of working and done tokens, the Relay token peels off entirely, sealed-envelope icon visible, moving away from the swarm.
+Caption: &quot;Not every question belongs in the loop.&quot;
+
+Panel 2:
+The Relay token in transit, moving past the turnstile-gate structure from page 06 without engaging it, heading toward the glass-panel wall at the stage&#x27;s edge.
+Caption: &quot;Keys. Venue. Money. Pacing. Those don&#x27;t get decided by a vote of agents.&quot;
+
+Panel 3:
+Reveal shot of the glass-panel wall and the Human Operator&#x27;s silhouette seated behind it at a plain desk — a clear visual departure from every card-icon character shown so far.
+Caption: &quot;Behind the glass is the one seat that was never an agent to begin with.&quot;
+
+Panel 4:
+Close on a small pass-through slot in the glass wall: the Relay token&#x27;s sealed envelope passing through, unopened, into the Human Operator&#x27;s silhouette hand.
+Caption: &quot;A question goes in sealed. Nothing about it gets guessed at on the way.&quot;
+
+Panel 5:
+A large hourglass icon, visually echoing the clock diagram from page 05 but rendered distinctly (sand, not a sweeping hand), positioned between the lanes and the glass wall.
+Caption: &quot;The heartbeat outside is sixty seconds. Behind the glass, it&#x27;s minutes — because a person actually has to decide.&quot;
+
+Panel 6:
+The Human Operator&#x27;s silhouette passes a now-open, stamped envelope back through the slot; the Relay token carries it away from the glass wall, re-entering the lanes toward the working tokens.
+Caption: &quot;Then the answer comes back, and the loop picks up exactly where it left off.&quot;
+
+Lettering:
+Render the hourglass and pass-through slot as clean flat diagram elements; keep the Human Operator&#x27;s silhouette simple and unshowy — the glass wall itself should carry the visual weight of this page, not the figure behind it.
+
+Output:
+A single finished manga page.</pre></div></section>
+<section class="card" id="page-8"><p class="card-no">Page 8</p><h2>page-08</h2><p class="meta"><b>3210</b> chars · source: <b>page-08.md</b></p><div class="promptwrap"><button class="copybtn">Copy</button><pre class="prompt">Create a six-panel educational manga page.
+
+Style:
+Clean colored infographic-manga.
+Flat soft coloring, warm cream/paper background.
+Recurring simple mascot character (expressive, not chibi).
+Bold confident linework, generous negative space.
+Diagrams (loops, cycles, arrows) rendered directly into panels as clean vector shapes.
+Bold sans display lettering for headers; dry, deadpan caption voice.
+Not black-and-white. Not gritty. Not glossy 3D. Not photorealistic.
+
+Characters in this page:
+Pixel the Floor Cat — a lavender-purple tabby cat, bipedal, upright posture, large round expressive eyes with thin arched eyebrows, long thin tail. White over-ear headphones resting around the neck, not on the ears. Dry, unbothered expression, matching the exact pose used in page 01 Panel 1 for the closing bookend shot.
+Seat tokens, the Facilitator token, the Relay token, and the Human Operator silhouette — all as previously designed, now reduced to small iconic vignettes within a single composite loop diagram rather than full scene actors.
+
+Setting:
+A clean diagram space — this page reads as the book closing its own cover, the stage elements from earlier pages compressed into one schematic view.
+
+Panel 1:
+Wide shot: a single large circular arrow-path diagram, with seven small vignette icons placed around its circumference — the spotlight instruction, the parallel lanes, the Done/Stuck cards, the help cluster, the heartbeat pulse, and the turnstile gate — each a miniature callback to its own earlier page, connected in sequence by the circular arrow.
+Caption: &quot;Zoom out, and it&#x27;s not seven separate rules. It&#x27;s one ring.&quot;
+
+Panel 2:
+Close-up on the final arc of the arrow-path, where the turnstile-gate vignette connects back around to the spotlight-instruction vignette, the connecting arrow labeled &quot;STEP k+1.&quot;
+Caption: &quot;The gate doesn&#x27;t lead somewhere new. It leads back to the spotlight.&quot;
+
+Panel 3:
+The glass-wall/Human-Operator vignette shown positioned just outside the main circular path, attached by a short spur arrow rather than sitting on the ring itself.
+Caption: &quot;The glass wall was never on the ring. It&#x27;s a spur, not a stop — the loop doesn&#x27;t wait there. It waits for the answer to come back.&quot;
+
+Panel 4:
+Pixel standing at the exact center of the full loop diagram, facing the reader directly, delivering the book&#x27;s central line.
+Caption: &quot;The loop&#x27;s real output was never LAB1. It was a dozen agents crossing the same line, on purpose, together.&quot;
+
+Panel 5:
+Wide shot of the loop diagram now shown mid-motion, faint ghosted labels &quot;STEP 1 → STEP 2 → STEP 3 →&quot; trailing along the arrow-path to suggest indefinite continuation.
+Caption: &quot;Step one becomes step two becomes step three. The ring doesn&#x27;t care how many times it turns.&quot;
+
+Panel 6:
+Final panel: Pixel alone in the same pose and framing as page 01 Panel 1, headphones resting around the neck, addressing the reader one last time.
+Caption: &quot;Same room, next lab. Bring your own cursor.&quot;
+
+Lettering:
+Panel 6 should visually mirror Panel 1 of page 01 as closely as possible — same pose, same framing, same headphone position — so the two pages read as a deliberate bookend when placed side by side.
+
+Output:
+A single finished manga page.</pre></div></section>
+  <footer>8 prompts · agent-room-loop · review surface — not the source of truth</footer>
+</div>
+<script>
+  document.querySelectorAll('.copybtn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var pre = b.parentElement.querySelector('pre.prompt');
+      navigator.clipboard.writeText(pre.innerText).then(function () {
+        var t = b.textContent; b.textContent = 'Copied'; setTimeout(function () { b.textContent = t; }, 1200);
+      });
+    });
+  });
+</script>
+</body>
+</html>

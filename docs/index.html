@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Box the Agent: Sandboxing at VCN #42</title>
+<meta name="description" content="An educational manga explainer — a recap of the VCN #42 sandboxing workshop, where a deliberately malicious script was run inside a disposable container and failed to steal secrets or reach the internet.">
+<meta property="og:title" content="Box the Agent: Sandboxing at VCN #42">
+<meta property="og:description" content="An educational manga explainer from the VCN #42 sandboxing workshop.">
+<meta property="og:image" content="pages/page-01.png">
+<style>
+  :root{
+    --bg:#0e0f13; --panel:#16181f; --ink:#f4f5f7; --muted:#9aa1ac;
+    --accent:#6ea8fe; --edge:#262a34; --shadow:rgba(0,0,0,.55);
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#eef0f4; --panel:#ffffff; --ink:#15171c; --muted:#5b626d;
+      --accent:#2f6fed; --edge:#d9dde5; --shadow:rgba(20,30,60,.18); }
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; height:100%; }
+  body{
+    background:var(--bg); color:var(--ink);
+    font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    display:flex; flex-direction:column; min-height:100dvh;
+    -webkit-font-smoothing:antialiased;
+  }
+  header{
+    display:flex; align-items:center; gap:12px; justify-content:space-between;
+    padding:12px 16px; border-bottom:1px solid var(--edge);
+    background:var(--panel); position:sticky; top:0; z-index:5;
+  }
+  header .t{ min-width:0; }
+  header h1{ font-size:15px; margin:0; letter-spacing:.2px; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; }
+  header p{ margin:2px 0 0; font-size:12px; color:var(--muted); white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; }
+  header .badge{ flex:none; font-size:11px; color:var(--muted); border:1px solid var(--edge);
+    border-radius:999px; padding:3px 9px; }
+
+  main{ flex:1; display:flex; align-items:center; justify-content:center;
+    padding:18px; position:relative; overflow:hidden; }
+
+  .stage{ position:relative; width:min(100%,760px); }
+  .frame{
+    position:relative; border-radius:14px; overflow:hidden;
+    background:var(--panel); border:1px solid var(--edge);
+    box-shadow:0 18px 50px var(--shadow);
+  }
+  .frame img{ display:block; width:100%; height:auto; user-select:none; -webkit-user-drag:none; }
+  .frame img.flip{ animation:flip .32s ease; }
+  @keyframes flip{
+    0%{ opacity:0; transform:translateX(var(--dir,18px)) scale(.985); }
+    100%{ opacity:1; transform:none; }
+  }
+
+  /* click zones */
+  .zone{ position:absolute; top:0; bottom:0; width:38%; cursor:pointer; z-index:2;
+    display:flex; align-items:center; }
+  .zone.left{ left:0; justify-content:flex-start; }
+  .zone.right{ right:0; justify-content:flex-end; }
+  .zone .hint{ opacity:0; transition:opacity .15s; margin:0 10px;
+    background:var(--panel); border:1px solid var(--edge); color:var(--ink);
+    width:40px; height:40px; border-radius:50%; display:grid; place-items:center;
+    font-size:18px; box-shadow:0 6px 18px var(--shadow); }
+  .zone:hover .hint{ opacity:.92; }
+  .zone.disabled{ cursor:default; }
+  .zone.disabled .hint{ display:none; }
+
+  footer{
+    display:flex; align-items:center; justify-content:center; gap:14px;
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--edge); background:var(--panel);
+  }
+  button.nav{
+    appearance:none; border:1px solid var(--edge); background:transparent; color:var(--ink);
+    border-radius:10px; padding:9px 14px; font-size:14px; cursor:pointer;
+    display:inline-flex; align-items:center; gap:7px; transition:background .15s,border-color .15s;
+  }
+  button.nav:hover:not(:disabled){ background:var(--bg); border-color:var(--accent); }
+  button.nav:disabled{ opacity:.35; cursor:default; }
+  .counter{ font-variant-numeric:tabular-nums; color:var(--muted); font-size:13px; min-width:74px;
+    text-align:center; }
+  .counter b{ color:var(--ink); }
+
+  .progress{ position:absolute; left:0; right:0; bottom:0; height:3px; background:transparent; }
+  .progress i{ display:block; height:100%; background:var(--accent); width:0; transition:width .25s ease; }
+
+  .foot-links{ position:fixed; right:14px; bottom:64px; z-index:6; }
+  .foot-links a{ color:var(--muted); font-size:12px; text-decoration:none; border:1px solid var(--edge);
+    background:var(--panel); border-radius:999px; padding:5px 11px; box-shadow:0 6px 18px var(--shadow); }
+  .foot-links a:hover{ color:var(--ink); border-color:var(--accent); }
+
+  @media (max-width:520px){
+    header h1{ font-size:13.5px; } .badge{ display:none; }
+    .foot-links{ display:none; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="t">
+      <h1>Box the Agent: Sandboxing at VCN&nbsp;#42</h1>
+      <p>An educational manga explainer · Immersive Commons, Frontier Tower SF</p>
+    </div>
+    <span class="badge" id="badge">Page 1 / 12</span>
+  </header>
+
+  <main>
+    <div class="stage">
+      <div class="frame">
+        <img id="page" alt="Comic page" src="pages/page-01.png">
+        <div class="zone left disabled" id="zl" aria-label="Previous page"><span class="hint">‹</span></div>
+        <div class="zone right" id="zr" aria-label="Next page"><span class="hint">›</span></div>
+        <div class="progress"><i id="bar"></i></div>
+      </div>
+    </div>
+  </main>
+
+  <div class="foot-links">
+    <a href="https://comicexplain.com/c/box-the-agent-sandboxing-at-vcn-42-6ac3ec" target="_blank" rel="noopener">View on ComicExplain ↗</a>
+  </div>
+
+  <footer>
+    <button class="nav" id="prev">‹ Prev</button>
+    <span class="counter"><b id="cur">1</b> / <span id="tot">12</span></span>
+    <button class="nav" id="next">Next ›</button>
+  </footer>
+
+<script>
+(function(){
+  var TOTAL = 12;
+  var pad = function(n){ return (n<10?'0':'')+n; };
+  var src = function(n){ return 'pages/page-'+pad(n)+'.png'; };
+
+  var img   = document.getElementById('page');
+  var cur   = document.getElementById('cur');
+  var badge = document.getElementById('badge');
+  var bar   = document.getElementById('bar');
+  var prev  = document.getElementById('prev');
+  var next  = document.getElementById('next');
+  var zl    = document.getElementById('zl');
+  var zr    = document.getElementById('zr');
+
+  var page = 1;
+
+  // preload neighbours for snappy flips
+  function preload(n){ if(n>=1&&n<=TOTAL){ var i=new Image(); i.src=src(n); } }
+
+  function fromHash(){
+    var m = /page-(\d+)/.exec(location.hash||'');
+    var n = m ? parseInt(m[1],10) : 1;
+    return (n>=1 && n<=TOTAL) ? n : 1;
+  }
+
+  function render(dir){
+    img.style.setProperty('--dir', (dir<0?'-18px':'18px'));
+    img.classList.remove('flip'); void img.offsetWidth; img.classList.add('flip');
+    img.src = src(page);
+    img.alt = 'Comic page ' + page + ' of ' + TOTAL;
+    cur.textContent = page;
+    badge.textContent = 'Page ' + page + ' / ' + TOTAL;
+    bar.style.width = (page/TOTAL*100) + '%';
+    prev.disabled = (page===1);
+    next.disabled = (page===TOTAL);
+    zl.classList.toggle('disabled', page===1);
+    zr.classList.toggle('disabled', page===TOTAL);
+    preload(page+1); preload(page-1);
+  }
+
+  function go(n, dir){
+    n = Math.max(1, Math.min(TOTAL, n));
+    if(n===page && dir!==0) return;
+    dir = (n<page)? -1 : 1;
+    page = n;
+    if(('#page-'+page) !== location.hash){
+      history.replaceState(null,'','#page-'+page);
+    }
+    render(dir);
+  }
+
+  prev.addEventListener('click', function(){ go(page-1); });
+  next.addEventListener('click', function(){ go(page+1); });
+  zl.addEventListener('click', function(){ go(page-1); });
+  zr.addEventListener('click', function(){ go(page+1); });
+
+  document.addEventListener('keydown', function(e){
+    if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){ e.preventDefault(); go(page+1); }
+    else if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); go(page-1); }
+    else if(e.key==='Home'){ e.preventDefault(); go(1); }
+    else if(e.key==='End'){ e.preventDefault(); go(TOTAL); }
+  });
+
+  // touch swipe
+  var sx=0, sy=0, tracking=false;
+  var stage = document.querySelector('.frame');
+  stage.addEventListener('touchstart', function(e){
+    if(e.touches.length!==1) return; tracking=true; sx=e.touches[0].clientX; sy=e.touches[0].clientY;
+  }, {passive:true});
+  stage.addEventListener('touchend', function(e){
+    if(!tracking) return; tracking=false;
+    var t=e.changedTouches[0], dx=t.clientX-sx, dy=t.clientY-sy;
+    if(Math.abs(dx)>45 && Math.abs(dx)>Math.abs(dy)){ go(dx<0 ? page+1 : page-1); }
+  }, {passive:true});
+
+  window.addEventListener('hashchange', function(){ go(fromHash()); });
+
+  page = fromHash();
+  render(0);
+})();
+</script>
+</body>
+</html>
