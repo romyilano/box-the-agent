@@ -38,27 +38,34 @@
   header .badge{ flex:none; font-size:11px; color:var(--muted); border:1px solid var(--edge);
     border-radius:999px; padding:3px 9px; }
 
-  main{ flex:1; display:flex; align-items:center; justify-content:center;
-    padding:18px; position:relative; overflow:hidden; }
+  main{ flex:1; position:relative; overflow:hidden; padding:14px; }
 
-  .stage{ position:relative; width:min(100%,760px); }
-  .frame{
-    position:relative; border-radius:14px; overflow:hidden;
+  /* scrollable, zoomable page viewport */
+  .viewport{
+    position:absolute; inset:14px; overflow:auto; border-radius:14px;
     background:var(--panel); border:1px solid var(--edge);
     box-shadow:0 18px 50px var(--shadow);
+    scrollbar-width:thin; -webkit-overflow-scrolling:touch; touch-action:pan-x pan-y;
   }
-  .frame img{ display:block; width:100%; height:auto; user-select:none; -webkit-user-drag:none; }
-  .frame img.flip{ animation:flip .32s ease; }
+  .viewport::-webkit-scrollbar{ width:9px; height:9px; }
+  .viewport::-webkit-scrollbar-thumb{ background:var(--edge); border-radius:99px; }
+  .viewport img{
+    display:block; margin:0 auto; width:100%; height:auto;
+    user-select:none; -webkit-user-drag:none;
+  }
+  .viewport.zoomed{ cursor:grab; }
+  .viewport.grabbing{ cursor:grabbing; }
+  .viewport img.flip{ animation:flip .3s ease; }
   @keyframes flip{
     0%{ opacity:0; transform:translateX(var(--dir,18px)) scale(.985); }
     100%{ opacity:1; transform:none; }
   }
 
-  /* click zones */
-  .zone{ position:absolute; top:0; bottom:0; width:38%; cursor:pointer; z-index:2;
-    display:flex; align-items:center; }
-  .zone.left{ left:0; justify-content:flex-start; }
-  .zone.right{ right:0; justify-content:flex-end; }
+  /* click zones (paging) — hidden while zoomed */
+  .zone{ position:absolute; top:14px; bottom:14px; width:30%; cursor:pointer; z-index:3;
+    display:flex; align-items:center; transition:opacity .15s; }
+  .zone.left{ left:14px; justify-content:flex-start; }
+  .zone.right{ right:14px; justify-content:flex-end; }
   .zone .hint{ opacity:0; transition:opacity .15s; margin:0 10px;
     background:var(--panel); border:1px solid var(--edge); color:var(--ink);
     width:40px; height:40px; border-radius:50%; display:grid; place-items:center;
@@ -66,6 +73,18 @@
   .zone:hover .hint{ opacity:.92; }
   .zone.disabled{ cursor:default; }
   .zone.disabled .hint{ display:none; }
+  main.zoomed .zone{ pointer-events:none; opacity:0; }
+
+  /* zoom controls */
+  .zoombar{ position:absolute; top:24px; right:26px; z-index:5; display:flex; gap:2px;
+    background:var(--panel); border:1px solid var(--edge); border-radius:10px; padding:4px;
+    box-shadow:0 6px 18px var(--shadow); }
+  .zoombar button{ appearance:none; border:0; background:transparent; color:var(--ink);
+    height:30px; min-width:32px; border-radius:7px; cursor:pointer; font-size:16px; line-height:1;
+    display:grid; place-items:center; padding:0 6px; }
+  .zoombar button:hover:not(:disabled){ background:var(--bg); }
+  .zoombar button:disabled{ opacity:.35; cursor:default; }
+  .zoombar .lvl{ font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; min-width:44px; }
 
   footer{
     display:flex; align-items:center; justify-content:center; gap:14px;
@@ -83,7 +102,8 @@
     text-align:center; }
   .counter b{ color:var(--ink); }
 
-  .progress{ position:absolute; left:0; right:0; bottom:0; height:3px; background:transparent; }
+  .progress{ position:absolute; left:14px; right:14px; bottom:6px; height:3px; z-index:4;
+    border-radius:2px; overflow:hidden; background:transparent; pointer-events:none; }
   .progress i{ display:block; height:100%; background:var(--accent); width:0; transition:width .25s ease; }
 
   .foot-links{ position:fixed; right:14px; bottom:64px; z-index:6; }
@@ -126,15 +146,18 @@
     <span class="badge" id="badge">Page 1 / 12</span>
   </header>
 
-  <main>
-    <div class="stage">
-      <div class="frame">
-        <img id="page" alt="Comic page" src="pages/page-01.png">
-        <div class="zone left disabled" id="zl" aria-label="Previous page"><span class="hint">‹</span></div>
-        <div class="zone right" id="zr" aria-label="Next page"><span class="hint">›</span></div>
-        <div class="progress"><i id="bar"></i></div>
-      </div>
+  <main id="main">
+    <div class="viewport" id="viewport">
+      <img id="page" alt="Comic page" src="pages/page-01.png">
     </div>
+    <div class="zone left disabled" id="zl" aria-label="Previous page"><span class="hint">‹</span></div>
+    <div class="zone right" id="zr" aria-label="Next page"><span class="hint">›</span></div>
+    <div class="zoombar" aria-label="Zoom controls">
+      <button id="zout" type="button" title="Zoom out (−)">−</button>
+      <button id="zfit" type="button" class="lvl" title="Fit page (0)">Fit</button>
+      <button id="zin" type="button" title="Zoom in (+)">+</button>
+    </div>
+    <div class="progress"><i id="bar"></i></div>
   </main>
 
   <div class="foot-links">
@@ -164,9 +187,18 @@
   var zl    = document.getElementById('zl');
   var zr    = document.getElementById('zr');
   var thumbs= document.getElementById('thumbs');
+  var main     = document.getElementById('main');
+  var viewport = document.getElementById('viewport');
+  var zin   = document.getElementById('zin');
+  var zout  = document.getElementById('zout');
+  var zfit  = document.getElementById('zfit');
 
   var page = 1;
   var thumbEls = [];
+
+  // zoom state
+  var zoom = 1, naturalAR = 0;
+  var ZMIN = 1, ZMAX = 5, ZSTEP = 1.5;
 
   // build the thumbnail strip
   (function buildThumbs(){
@@ -193,6 +225,72 @@
     if(act){ act.scrollIntoView({block:'nearest', inline:'center'}); }
   }
 
+  // ---- zoom + pan ----
+  function baseWidth(){
+    var vw = viewport.clientWidth, vh = viewport.clientHeight;
+    if(!naturalAR) return vw;
+    return Math.min(vw, vh * naturalAR);   // width that fits the whole page
+  }
+  function applyZoom(){
+    img.style.width = (baseWidth() * zoom) + 'px';
+    var z = zoom > 1.001;
+    main.classList.toggle('zoomed', z);
+    viewport.classList.toggle('zoomed', z);
+    zfit.textContent = z ? Math.round(zoom * 100) + '%' : 'Fit';
+    zout.disabled = zoom <= ZMIN + 0.001;
+    zin.disabled  = zoom >= ZMAX - 0.001;
+  }
+  function setZoom(nz, cx, cy){
+    nz = Math.max(ZMIN, Math.min(ZMAX, nz));
+    var rect = viewport.getBoundingClientRect();
+    if(cx==null) cx = rect.width/2;
+    if(cy==null) cy = rect.height/2;
+    var preW = img.offsetWidth || 1, preH = img.offsetHeight || 1;
+    var relX = (viewport.scrollLeft + cx) / preW;   // keep the point under the cursor fixed
+    var relY = (viewport.scrollTop  + cy) / preH;
+    zoom = nz; applyZoom();
+    viewport.scrollLeft = relX * img.offsetWidth  - cx;
+    viewport.scrollTop  = relY * img.offsetHeight - cy;
+  }
+
+  img.addEventListener('load', function(){
+    if(img.naturalWidth){ naturalAR = img.naturalWidth / img.naturalHeight; applyZoom(); }
+  });
+
+  zin.addEventListener('click',  function(){ setZoom(zoom * ZSTEP); });
+  zout.addEventListener('click', function(){ setZoom(zoom / ZSTEP); });
+  zfit.addEventListener('click', function(){ setZoom(1); });
+
+  viewport.addEventListener('dblclick', function(e){
+    var rect = viewport.getBoundingClientRect();
+    var cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+    if(zoom > 1.001) setZoom(1); else setZoom(2.2, cx, cy);
+  });
+
+  // ctrl + wheel to zoom (plain wheel scrolls the page)
+  viewport.addEventListener('wheel', function(e){
+    if(!e.ctrlKey) return;
+    e.preventDefault();
+    var rect = viewport.getBoundingClientRect();
+    setZoom(zoom * (e.deltaY < 0 ? 1.12 : 0.9), e.clientX - rect.left, e.clientY - rect.top);
+  }, {passive:false});
+
+  // mouse drag to pan while zoomed
+  var panning=false, px=0, py=0, sl=0, st=0;
+  viewport.addEventListener('mousedown', function(e){
+    if(zoom <= 1.001) return;
+    panning=true; px=e.clientX; py=e.clientY; sl=viewport.scrollLeft; st=viewport.scrollTop;
+    viewport.classList.add('grabbing'); e.preventDefault();
+  });
+  window.addEventListener('mousemove', function(e){
+    if(!panning) return;
+    viewport.scrollLeft = sl - (e.clientX - px);
+    viewport.scrollTop  = st - (e.clientY - py);
+  });
+  window.addEventListener('mouseup', function(){ panning=false; viewport.classList.remove('grabbing'); });
+
+  window.addEventListener('resize', function(){ applyZoom(); });
+
   // preload neighbours for snappy flips
   function preload(n){ if(n>=1&&n<=TOTAL){ var i=new Image(); i.src=src(n); } }
 
@@ -214,6 +312,7 @@
     next.disabled = (page===TOTAL);
     zl.classList.toggle('disabled', page===1);
     zr.classList.toggle('disabled', page===TOTAL);
+    zoom = 1; viewport.scrollLeft = 0; viewport.scrollTop = 0; applyZoom();
     syncThumbs();
     preload(page+1); preload(page-1);
   }
@@ -235,28 +334,55 @@
   zr.addEventListener('click', function(){ go(page+1); });
 
   document.addEventListener('keydown', function(e){
-    if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){ e.preventDefault(); go(page+1); }
+    var z = zoom > 1.001;
+    if(e.key==='ArrowRight'||e.key==='PageDown'){ e.preventDefault(); go(page+1); }
     else if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); go(page-1); }
+    else if(e.key===' '){ e.preventDefault(); if(z){ viewport.scrollTop += viewport.clientHeight*0.85; } else { go(page+1); } }
+    else if(e.key==='ArrowDown'){ if(z){ e.preventDefault(); viewport.scrollTop += 90; } }
+    else if(e.key==='ArrowUp'){ if(z){ e.preventDefault(); viewport.scrollTop -= 90; } }
     else if(e.key==='Home'){ e.preventDefault(); go(1); }
     else if(e.key==='End'){ e.preventDefault(); go(TOTAL); }
+    else if(e.key==='+'||e.key==='='){ e.preventDefault(); setZoom(zoom*ZSTEP); }
+    else if(e.key==='-'||e.key==='_'){ e.preventDefault(); setZoom(zoom/ZSTEP); }
+    else if(e.key==='0'){ e.preventDefault(); setZoom(1); }
   });
 
-  // touch swipe
+  // touch: swipe to page (only at fit) + pinch to zoom
   var sx=0, sy=0, tracking=false;
-  var stage = document.querySelector('.frame');
-  stage.addEventListener('touchstart', function(e){
-    if(e.touches.length!==1) return; tracking=true; sx=e.touches[0].clientX; sy=e.touches[0].clientY;
+  var pinching=false, pDist=0, pZoom=1, pMidX=0, pMidY=0;
+  function tdist(e){ var a=e.touches[0], b=e.touches[1];
+    return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
+  viewport.addEventListener('touchstart', function(e){
+    if(e.touches.length===2){
+      pinching=true; tracking=false; pDist=tdist(e); pZoom=zoom;
+      var rect=viewport.getBoundingClientRect();
+      pMidX=(e.touches[0].clientX+e.touches[1].clientX)/2 - rect.left;
+      pMidY=(e.touches[0].clientY+e.touches[1].clientY)/2 - rect.top;
+      return;
+    }
+    if(e.touches.length!==1) return;
+    tracking = (zoom <= 1.001); sx=e.touches[0].clientX; sy=e.touches[0].clientY;
   }, {passive:true});
-  stage.addEventListener('touchend', function(e){
+  viewport.addEventListener('touchmove', function(e){
+    if(pinching && e.touches.length===2){
+      e.preventDefault();
+      if(pDist>0) setZoom(pZoom * tdist(e)/pDist, pMidX, pMidY);
+    }
+  }, {passive:false});
+  viewport.addEventListener('touchend', function(e){
+    if(pinching && e.touches.length<2) pinching=false;
     if(!tracking) return; tracking=false;
     var t=e.changedTouches[0], dx=t.clientX-sx, dy=t.clientY-sy;
-    if(Math.abs(dx)>45 && Math.abs(dx)>Math.abs(dy)){ go(dx<0 ? page+1 : page-1); }
+    if(zoom<=1.001 && Math.abs(dx)>45 && Math.abs(dx)>Math.abs(dy)){ go(dx<0 ? page+1 : page-1); }
   }, {passive:true});
 
   window.addEventListener('hashchange', function(){ go(fromHash()); });
 
   page = fromHash();
   render(0);
+  if(img.complete && img.naturalWidth){
+    naturalAR = img.naturalWidth / img.naturalHeight; applyZoom();
+  }
 })();
 </script>
 </body>
