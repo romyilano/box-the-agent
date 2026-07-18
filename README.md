@@ -4,6 +4,7 @@
 Immersive Commons (Floor 10) — a members-run AI builder space.
 
 🎟️ **Event:** [VCN #42 — The Sandbox (Luma)](https://luma.com/vcn-42-the-sandbox)
+📖 **Read the comic:** [Box the Agent — flippable reader](https://romyilano.github.io/box-the-agent/) · [on ComicExplain](https://comicexplain.com/c/box-the-agent-sandboxing-at-vcn-42-6ac3ec)
 
 ## What this was
 
