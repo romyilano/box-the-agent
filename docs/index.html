@@ -91,9 +91,29 @@
     background:var(--panel); border-radius:999px; padding:5px 11px; box-shadow:0 6px 18px var(--shadow); }
   .foot-links a:hover{ color:var(--ink); border-color:var(--accent); }
 
+  /* thumbnail strip */
+  .thumbs{
+    display:flex; gap:8px; align-items:center; overflow-x:auto; overflow-y:hidden;
+    padding:10px 14px; border-top:1px solid var(--edge); background:var(--panel);
+    scroll-behavior:smooth; scrollbar-width:thin; -webkit-overflow-scrolling:touch;
+  }
+  .thumbs::-webkit-scrollbar{ height:7px; }
+  .thumbs::-webkit-scrollbar-thumb{ background:var(--edge); border-radius:99px; }
+  .thumb{
+    flex:0 0 auto; width:52px; height:70px; border-radius:7px; overflow:hidden;
+    border:2px solid transparent; background:var(--bg); cursor:pointer; padding:0;
+    position:relative; transition:border-color .15s, transform .12s; opacity:.7;
+  }
+  .thumb img{ width:100%; height:100%; object-fit:cover; object-position:top center; display:block; }
+  .thumb:hover{ opacity:1; transform:translateY(-2px); }
+  .thumb .no{ position:absolute; left:0; right:0; bottom:0; font-size:10px; text-align:center;
+    color:#fff; background:rgba(0,0,0,.55); padding:1px 0; font-variant-numeric:tabular-nums; }
+  .thumb.active{ border-color:var(--accent); opacity:1; }
+
   @media (max-width:520px){
     header h1{ font-size:13.5px; } .badge{ display:none; }
     .foot-links{ display:none; }
+    .thumb{ width:44px; height:60px; }
   }
 </style>
 </head>
@@ -121,6 +141,8 @@
     <a href="https://comicexplain.com/c/box-the-agent-sandboxing-at-vcn-42-6ac3ec" target="_blank" rel="noopener">View on ComicExplain ↗</a>
   </div>
 
+  <nav class="thumbs" id="thumbs" aria-label="Page thumbnails"></nav>
+
   <footer>
     <button class="nav" id="prev">‹ Prev</button>
     <span class="counter"><b id="cur">1</b> / <span id="tot">12</span></span>
@@ -141,8 +163,35 @@
   var next  = document.getElementById('next');
   var zl    = document.getElementById('zl');
   var zr    = document.getElementById('zr');
+  var thumbs= document.getElementById('thumbs');
 
   var page = 1;
+  var thumbEls = [];
+
+  // build the thumbnail strip
+  (function buildThumbs(){
+    for(var n=1;n<=TOTAL;n++){
+      (function(n){
+        var b = document.createElement('button');
+        b.className = 'thumb'; b.type='button';
+        b.setAttribute('aria-label','Go to page '+n);
+        var im = document.createElement('img');
+        im.loading='lazy'; im.src=src(n); im.alt='Page '+n+' thumbnail';
+        var no = document.createElement('span'); no.className='no'; no.textContent=n;
+        b.appendChild(im); b.appendChild(no);
+        b.addEventListener('click', function(){ go(n); });
+        thumbs.appendChild(b); thumbEls.push(b);
+      })(n);
+    }
+  })();
+
+  function syncThumbs(){
+    for(var i=0;i<thumbEls.length;i++){
+      thumbEls[i].classList.toggle('active', (i+1)===page);
+    }
+    var act = thumbEls[page-1];
+    if(act){ act.scrollIntoView({block:'nearest', inline:'center'}); }
+  }
 
   // preload neighbours for snappy flips
   function preload(n){ if(n>=1&&n<=TOTAL){ var i=new Image(); i.src=src(n); } }
@@ -165,6 +214,7 @@
     next.disabled = (page===TOTAL);
     zl.classList.toggle('disabled', page===1);
     zr.classList.toggle('disabled', page===TOTAL);
+    syncThumbs();
     preload(page+1); preload(page-1);
   }
 
